@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'medical_services.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -10,6 +11,15 @@ class HomePage extends StatelessWidget {
         appBar: AppBar(
           title: const Text("PILL ALIMI"),
           actions: [
+            IconButton(
+              icon: const Icon(Icons.medical_services),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => MedicalServices()),
+                );
+              },
+            ),
             IconButton(
               icon: const Icon(Icons.search),
               onPressed: () {
@@ -35,12 +45,6 @@ class HomePage extends StatelessWidget {
               },
             ),
           ],
-        ),
-        body: const Center(
-          child: Text(
-            '안녕하세요',
-            style: TextStyle(fontWeight: FontWeight.w700, color: Colors.red),
-          ),
         ),
       ),
     );
