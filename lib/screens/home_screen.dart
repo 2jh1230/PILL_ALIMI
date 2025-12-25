@@ -141,6 +141,7 @@ class _HomeScreenState extends State<HomeScreen> {
             body: "${updatedMedicine.name} 복용 시간입니다.",
             hour: hour,
             minute: minute,
+            payload: medicine.id.toString(), // [추가] 약 ID를 문자열로 전달
           );
         }
       }

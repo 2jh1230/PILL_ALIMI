@@ -247,6 +247,7 @@ class _CheckPillListScreenState extends State<CheckPillListScreen> {
               body: "${newMedicine.name} 복용 시간입니다.",
               hour: hour,
               minute: minute,
+              payload: newMedicineId.toString(), // [추가] 약 ID 전달
             );
           }
         }

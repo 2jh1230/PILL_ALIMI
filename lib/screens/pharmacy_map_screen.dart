@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart'; // [추가]
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -17,10 +17,12 @@ class PharmacyMapScreen extends StatefulWidget {
 class _PharmacyMapScreenState extends State<PharmacyMapScreen> {
   NaverMapController? _mapController;
 
-  bool _isLoading = true;
+  // 로딩 상태(_isLoading)를 제거하고 _isLocating(위치 찾는 중) 상태 사용
+  bool _isLocating = true;
   bool _showSearchButton = false;
   bool _isSearching = false;
 
+  // 기본 위치: 서울 시청 (위치를 못 찾았을 때 보여줄 곳)
   NLatLng _myLocation = const NLatLng(37.5665, 126.9780);
   NLatLng? _lastSearchedLocation;
 
@@ -32,7 +34,10 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen> {
     _getCurrentLocation();
   }
 
+  // 토스트 메시지 함수
   void _showToast(String message, {bool isError = false}) {
+    if (!mounted) return;
+
     final overlay = Overlay.of(context);
     late OverlayEntry overlayEntry;
 
@@ -114,26 +119,44 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen> {
     bool serviceEnabled;
     LocationPermission permission;
 
+    // 1. 위치 서비스 활성화 여부 확인
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLocating = false);
       return;
     }
 
+    // 2. 권한 확인 및 요청
     permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        setState(() => _isLoading = false);
+        if (mounted) setState(() => _isLocating = false);
         return;
       }
     }
 
     if (permission == LocationPermission.deniedForever) {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLocating = false);
       return;
     }
 
+    // 3. 마지막으로 저장된 위치를 먼저 가져와서 지도 이동 (속도 개선)
+    try {
+      Position? lastPosition = await Geolocator.getLastKnownPosition();
+      if (lastPosition != null && mounted) {
+        setState(() {
+          _myLocation = NLatLng(lastPosition.latitude, lastPosition.longitude);
+        });
+        // 지도가 준비된 상태라면 바로 이동
+        _mapController?.updateCamera(
+            NCameraUpdate.scrollAndZoomTo(target: _myLocation, zoom: 15));
+      }
+    } catch (e) {
+      // 무시 (아래에서 정확한 위치 다시 찾음)
+    }
+
+    // 4. 정확한 현재 위치 갱신 (백그라운드 처리)
     try {
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
@@ -142,12 +165,23 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen> {
       if (mounted) {
         setState(() {
           _myLocation = NLatLng(position.latitude, position.longitude);
-          _isLoading = false;
+          _isLocating = false; // 로딩 종료
         });
+
+        // [수정된 부분] withAnimation -> ..setAnimation 으로 변경
+        _mapController?.updateCamera(
+          NCameraUpdate.scrollAndZoomTo(
+            target: _myLocation,
+            zoom: 15,
+          )..setAnimation(
+              animation: NCameraAnimation.easing,
+              duration: const Duration(seconds: 1),
+            ),
+        );
       }
     } catch (e) {
       if (kDebugMode) print("위치 에러: $e");
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLocating = false);
     }
   }
 
@@ -224,11 +258,6 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen> {
 
           newMarkers.add(marker);
         }
-      }
-
-      if (kDebugMode) {
-        print(
-            "📊 [최종 결과] 2km 이내 약국: $filteredCount개 (영업중: $openCount, 영업종료: $closedCount)");
       }
 
       if (mounted) {
@@ -566,13 +595,6 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(
-        body:
-            Center(child: CircularProgressIndicator(color: Color(0xFFFF9999))),
-      );
-    }
-
     return Scaffold(
       body: Stack(
         children: [
@@ -609,6 +631,8 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen> {
               }
             },
           ),
+
+          // "이 지역에서 다시 검색" 버튼
           if (_showSearchButton)
             Positioned(
               top: 40,
@@ -650,10 +674,44 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen> {
                 ),
               ),
             ),
+
+          // API 검색 로딩
           if (_isSearching)
             const Center(
               child: CircularProgressIndicator(color: Color(0xFFFF9999)),
             ),
+
+          // [추가] 위치 찾는 중 로딩 (지도 위에 작게 표시)
+          if (_isLocating && !_isSearching)
+            Positioned(
+              top: 50,
+              right: 20,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black12, blurRadius: 4)
+                    ]),
+                child: Row(
+                  children: [
+                    SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Color(0xFFFF9999))),
+                    SizedBox(width: 8),
+                    Text("위치 찾는 중...",
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey)),
+                  ],
+                ),
+              ),
+            )
         ],
       ),
     );

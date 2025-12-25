@@ -7,26 +7,55 @@ class ApiService {
   // .env에서 키를 가져오도록 수정된 상태라고 가정합니다.
   final String serviceKey = dotenv.env['PUBLIC_DATA_KEY'] ?? '';
 
-  // 1. 알약 검색
-  Future<List<dynamic>> searchPills(String keyword) async {
-    const String baseUrl =
-        'https://apis.data.go.kr/1471000/MdcinGrnIdntfcInfoService03/getMdcinGrnIdntfcInfoList03';
+  // 1. 공공데이터 알약 검색
+  // Future<List<dynamic>> searchPills(String keyword) async {
+  //   const String baseUrl =
+  //       'https://apis.data.go.kr/1471000/MdcinGrnIdntfcInfoService03/getMdcinGrnIdntfcInfoList03';
 
-    String url = '$baseUrl?serviceKey=$serviceKey'
-        '&item_name=${Uri.encodeQueryComponent(keyword)}'
-        '&numOfRows=20&pageNo=1&type=json';
+  //   String url = '$baseUrl?serviceKey=$serviceKey'
+  //       '&item_name=${Uri.encodeQueryComponent(keyword)}'
+  //       '&numOfRows=20&pageNo=1&type=json';
+
+  //   try {
+  //     final response = await http.get(Uri.parse(url));
+
+  //     if (response.statusCode == 200) {
+  //       final data = jsonDecode(response.body);
+  //       if (data['body'] != null && data['body']['items'] != null) {
+  //         return data['body']['items'];
+  //       }
+  //     } else {
+  //       if (kDebugMode) {
+  //         print('알약 검색 통신 에러: ${response.statusCode}');
+  //       }
+  //     }
+  //     return [];
+  //   } catch (e) {
+  //     if (kDebugMode) {
+  //       print('알약 검색 에러: $e');
+  //     }
+  //     return [];
+  //   }
+  // }
+
+  // 1. 알약 검색 (내 개인 서버 사용)
+  Future<List<dynamic>> searchPills(String keyword) async {
+    // [중요] 내 오라클 클라우드 서버 주소
+    final String baseUrl = dotenv.env['ORACLE_CLOUD'] ?? '';
+
+    // 파라미터: name=검색어
+    String url = '$baseUrl?name=${Uri.encodeQueryComponent(keyword)}';
 
     try {
       final response = await http.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['body'] != null && data['body']['items'] != null) {
-          return data['body']['items'];
-        }
+        // 내 서버는 리스트 [...]를 바로 줍니다. 복잡한 body['items'] 필요 없음!
+        final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
+        return data;
       } else {
         if (kDebugMode) {
-          print('알약 검색 통신 에러: ${response.statusCode}');
+          print('서버 통신 에러: ${response.statusCode}');
         }
       }
       return [];

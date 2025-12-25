@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart'; // kDebugMode 사용
+import 'package:flutter/foundation.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'dart:io';
 import 'package:intl/date_symbol_data_local.dart';
@@ -19,6 +19,7 @@ import 'services/db_helper.dart';
 import 'models/medicine_model.dart';
 
 List<CameraDescription> cameras = [];
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -77,6 +78,7 @@ Future<void> _restoreScheduledNotifications() async {
             body: "${medicine.name} 복용 시간입니다.",
             hour: hour,
             minute: minute,
+            payload: medicine.id.toString(), // [추가] 약 ID 전달
           );
           count++;
         }
@@ -94,6 +96,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       title: '알약 알리미',
       theme: ThemeData(
@@ -214,13 +217,13 @@ class _MainPageState extends State<MainPage> {
     super.initState();
     _loadBannerAd();
 
-    // [추가] 앱이 켜지고 화면이 다 그려진 직후에 경고창 띄우기
+    // 앱이 켜지고 화면이 다 그려진 직후에 경고창 띄우기
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showWarningDialog();
     });
   }
 
-  // [추가] 주의사항 팝업 함수
+  // 주의사항 팝업 함수
   void _showWarningDialog() {
     showDialog(
       context: context,
@@ -363,17 +366,30 @@ class _MainPageState extends State<MainPage> {
       body: Column(
         children: [
           Expanded(
-            child: IndexedStack(
-              index: _selectedIndex,
+            child: Stack(
               children: [
-                HomeScreen(key: _homeScreenKey),
-                CalendarScreen(key: _calendarScreenKey),
-                const AddSelectionScreen(),
-                const SearchPillScreen(),
-                const PharmacyMapScreen(),
+                // 홈, 달력, 등록, 검색 (상태 유지를 위해 IndexedStack 사용)
+                Offstage(
+                  offstage: _selectedIndex == 4, // 지도가 켜지면 나머지 화면은 숨김 처리
+                  child: IndexedStack(
+                    index:
+                        _selectedIndex == 4 ? 0 : _selectedIndex, // 인덱스 에러 방지
+                    children: [
+                      HomeScreen(key: _homeScreenKey),
+                      CalendarScreen(key: _calendarScreenKey),
+                      const AddSelectionScreen(),
+                      const SearchPillScreen(),
+                    ],
+                  ),
+                ),
+
+                // 지도 (선택되었을 때만 화면에 그려서 충돌 방지)
+                if (_selectedIndex == 4) const PharmacyMapScreen(),
               ],
             ),
           ),
+
+          // 배너 광고 영역
           if (_isBannerAdReady && _bannerAd != null)
             SizedBox(
               width: _bannerAd!.size.width.toDouble(),

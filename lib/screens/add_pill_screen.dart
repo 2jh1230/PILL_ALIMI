@@ -284,6 +284,7 @@ class _AddPillScreenState extends State<AddPillScreen> {
         body: "${_nameController.text} 복용 시간입니다.",
         hour: time.hour,
         minute: time.minute,
+        payload: newMedicineId.toString(), // [추가] 새로 만든 약 ID 전달
       );
     }
 
