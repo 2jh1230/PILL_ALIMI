@@ -41,8 +41,8 @@ class _CheckPillListScreenState extends State<CheckPillListScreen> {
   // [추가] 전면 광고 로드 함수
   void _loadInterstitialAd() {
     InterstitialAd.load(
-      // ⚠️ 테스트용 전면 광고 ID (배포 시 실제 ID로 교체 필요)
-      adUnitId: 'ca-app-pub-3940256099942544/1033173712',
+      // 실제 전면 광고 ID
+      adUnitId: 'ca-app-pub-8532932981674379/9913383492',
       request: const AdRequest(),
       adLoadCallback: InterstitialAdLoadCallback(
         onAdLoaded: (ad) {

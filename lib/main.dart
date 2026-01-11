@@ -305,7 +305,8 @@ class _MainPageState extends State<MainPage> {
 
   void _loadBannerAd() {
     _bannerAd = BannerAd(
-      adUnitId: 'ca-app-pub-3940256099942544/6300978111',
+      // 실제 배너 광고 ID
+      adUnitId: 'ca-app-pub-8532932981674379/6165726080',
       request: const AdRequest(),
       size: AdSize.banner,
       listener: BannerAdListener(
